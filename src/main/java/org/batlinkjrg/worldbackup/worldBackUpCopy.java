@@ -14,6 +14,7 @@ import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 
 import org.apache.commons.io.FileUtils;
+import org.bukkit.Bukkit;
 import org.bukkit.World;
 
 public class worldBackUpCopy extends Thread {
@@ -114,8 +115,12 @@ public class worldBackUpCopy extends Thread {
 
         private void getWorldPath(World world) {
                 String path = WorldBackUp.WORLD_CONTAINER;
-                path = path.substring(0, path.length() - 1);
-                path = path + world.getName();
+
+                if(path.endsWith(File.separator + ".")) {
+                      path = path.substring(0, WorldBackUp.WORLD_CONTAINER.length() - 2);  
+                }
+                
+                path = path + File.separator + world.getName();
                 this.worldPath = path;
         }
 }
