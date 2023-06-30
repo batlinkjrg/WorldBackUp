@@ -10,6 +10,6 @@ commands:
     aliases: [bw, buw, backup]
     permission: worldBackUp.backup
     permission-message: You do not have permission to use this command
-    usage: "Usage: /[bw, buw, backup, backupworld] <worldname>"
+    usage: "'Invalid' -> Usage: /[bw, buw, backup, backupworld] <worldname>"
     default: op
     
