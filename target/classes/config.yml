@@ -1,2 +1,5 @@
 AutoBackUp: true
 TimeOfDay24: 2
+BackupPath: ""
+BackupCount: 2
+Exclusions: []

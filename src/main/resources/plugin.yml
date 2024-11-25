@@ -1,15 +1,14 @@
 api: "1.20"
 name: WorldBackUp
-version: '${project.version}'
-main: org.batlinkjrg.worldbackup.WorldBackUp
-api-version: '1.20'
+version: "${project.version}"
+main: org.batlinkjrg.WorldBackUp.WorldBackUp
+api-version: "1.20"
 load: POSTWORLD
 commands:
-  backupworld:
-    description: Save and backup worlds
-    aliases: [bw, buw, backup]
-    permission: worldBackUp.backup
-    permission-message: You do not have permission to use this command
-    usage: "'Invalid' -> Usage: /[bw, buw, backup, backupworld] <worldname>"
-    default: op
-    
+    backupworld:
+        description: Save and backup worlds
+        aliases: [bw, buw, backup]
+        permission: worldBackUp.backup
+        permission-message: You do not have permission to use this command
+        usage: "'Invalid' -> Usage: /[bw, buw, backup, backupworld] <worldname>"
+        default: op
