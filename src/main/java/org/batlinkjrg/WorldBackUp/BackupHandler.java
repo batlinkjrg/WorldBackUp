@@ -8,6 +8,8 @@ import java.nio.channels.FileChannel;
 import java.time.LocalTime;
 import java.time.ZoneId;
 import java.util.List;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.LinkedBlockingQueue;
 import java.util.stream.Collectors;
 import org.apache.commons.io.FileUtils;
 import org.bukkit.Bukkit;
@@ -32,7 +34,13 @@ public class BackupHandler extends BukkitRunnable {
     private String backupDir;
     private List<String> exclusions;
 
+    // Local Storage
     private World[] loadedWorlds;
+    private BlockingQueue<World> backupQueue = new LinkedBlockingQueue<>(20); 
+
+    // Autobackup variables
+    private long currentHour; // Time Variables
+    private boolean hasFinished = false;
 
     public BackupHandler(JavaPlugin plugin) {
         this.pluginHandle = plugin;
@@ -66,75 +74,69 @@ public class BackupHandler extends BukkitRunnable {
 
     // Old moveAndCopy method
     public synchronized boolean archiveWorlds() {
-        if (inUse) {
-            return false;
-        }
-
-        // Lock the method
-        this.inUse = true;
 
         int success = 0;
-        boolean result;
         this.updateWorldList();
 
         // Loop through worlds and skip ones on the exclusion list
         for (World world : this.loadedWorlds) {
+            // Check the exclusion list and skip the world if its in the list.
             if (this.exclusions.contains(world.getName())) {
                 WorldBackUp.printMessage("Skipping World: " + world.getName(), null);
                 success++;
                 continue;
             }
 
-            result = this.Backup(world);
-            if (result) success++;
+            WorldBackUp.printMessage("Adding: " + world.getName() + " to queue", null);
+            if (this.backupQueue.add(world)) success++;
         }
 
-        this.inUse = false; // Unlock the method
         return (success == this.loadedWorlds.length) ? true : false;
     }
 
     public synchronized boolean archiveWorld(String worldName) {
-        if (inUse) {
+  
+        World world = getWorld(worldName);
+        if (world == null)
             return false;
-        }
 
-        // Lock the method
-        this.inUse = true;
-
-        World world = this.getWorld(worldName);
-        Boolean result = this.Backup(world);
-
-        // Unlock the method
-        this.inUse = false;
-        return result;
+        // Backup the world selected, and store the results
+        WorldBackUp.printMessage("Adding: " + world.getName() + " to queue", null);
+        this.backupQueue.add(world);
+  
+        return true;
     }
 
     public synchronized void endThread() {
         this.threadEnd = true;
     }
 
+
+    // This run method will pull from the que of worlds to process and process them one by one. 
+    // It will also handle the autobackup.
     @Override
     public void run() {
-        int currentHour = LocalTime.now(ZoneId.systemDefault()).getHour();
-        boolean hasFinished = false;
-        long start, end; // Timer variables
-        while (enableAutoBackup && this.threadEnd) {
-            if (currentHour != this.backupTime) {
-                hasFinished = false;
-                continue;
+        while (!this.threadEnd) {
+            currentHour = LocalTime.now(ZoneId.systemDefault()).getHour();
+
+            if (this.threadEnd)
+                this.cancel();
+
+            if (currentHour != this.backupTime)
+                this.hasFinished = false;
+
+            // Add all worlds to the queue
+            if (this.enableAutoBackup && !this.hasFinished && (currentHour == this.backupTime)) {
+                WorldBackUp.printMessage("Adding Autobackup", null);
+                this.archiveWorlds();
+                this.hasFinished = true;
             }
 
-            // Check this second so we can set it to false if the time
-            // is not in the current hour.
-            if (hasFinished) continue;
-
-            if (!isInUse()) {
-                WorldBackUp.printMessage("Auto Backup Starting...", null);
-                start = System.currentTimeMillis();
-                archiveWorlds();
-                hasFinished = true;
-                end = System.currentTimeMillis();
-                WorldBackUp.printMessage("Auto Backup Finshed: " + (start - end) + "ms", null);
+            // Backup all worlds in the Queue
+            while (!this.backupQueue.isEmpty()) {
+                WorldBackUp.printMessage("Processing.., this may take time.", null);
+                WorldBackUp.printMessage("Do not stop server!", null);
+                this.Backup(this.backupQueue.poll());
             }
         }
     }
@@ -142,8 +144,6 @@ public class BackupHandler extends BukkitRunnable {
     // This function will back up a world and move any old copies.
     private boolean Backup(World world) {
         WorldBackUp.printMessage("Backing up: " + world.getName(), null);
-        WorldBackUp.printMessage("Processing.., this may take time.", null);
-        WorldBackUp.printMessage("Do not stop server!", null);
 
         File src, dest;
         // The for loop goes backwards through the backups
@@ -180,7 +180,7 @@ public class BackupHandler extends BukkitRunnable {
         return backupDir.getAbsolutePath();
     }
 
-    // This functionm is to get the path of the world data on the current server.
+    // This function is to get the path of the world data on the current server.
     private String getWorldPath(World world) {
         String container = this.pluginHandle.getServer().getWorldContainer().getAbsolutePath();
 
