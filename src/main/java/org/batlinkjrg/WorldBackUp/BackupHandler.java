@@ -16,7 +16,6 @@ import org.bukkit.Bukkit;
 import org.bukkit.World;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.scheduler.BukkitRunnable;
-import org.bukkit.util.FileUtil;
 
 public class BackupHandler extends BukkitRunnable {
 
@@ -45,7 +44,6 @@ public class BackupHandler extends BukkitRunnable {
     public BackupHandler(JavaPlugin plugin) {
         this.pluginHandle = plugin;
         this.enableAutoBackup = plugin.getConfig().getBoolean("AutoBackUp");
-        this.backupDir = plugin.getConfig().getString("BackupPath");
         this.backupTime = plugin.getConfig().getInt("TimeOfDay24");
         this.backupCount = plugin.getConfig().getInt("BackupCount");
         this.exclusions = plugin
@@ -54,6 +52,14 @@ public class BackupHandler extends BukkitRunnable {
             .stream()
             .map(e -> (String) e)
             .collect(Collectors.toList());
+
+        this.backupDir = plugin.getConfig().getString("BackupPath");
+
+        // Check if the backup dir is valid, if not set it default or fix it
+        if(this.backupDir.equals(""))
+            this.backupDir = this.pluginHandle.getDataFolder().getAbsolutePath();
+        else if (this.backupDir.startsWith("..")) 
+            this.backupDir = this.pluginHandle.getDataFolder().getAbsolutePath() + File.separator + this.backupDir;
 
         if (this.backupCount <= 0) this.backupCount = 1;
         updateWorldList();
@@ -74,7 +80,6 @@ public class BackupHandler extends BukkitRunnable {
 
     // Old moveAndCopy method
     public synchronized boolean archiveWorlds() {
-
         int success = 0;
         this.updateWorldList();
 
@@ -95,7 +100,6 @@ public class BackupHandler extends BukkitRunnable {
     }
 
     public synchronized boolean archiveWorld(String worldName) {
-  
         World world = getWorld(worldName);
         if (world == null)
             return false;
@@ -168,30 +172,15 @@ public class BackupHandler extends BukkitRunnable {
 
     // Get the path to copy the world backups too.
     private String getBackupPath(World world, int currentCount) {
-        String path = this.pluginHandle.getDataFolder().getAbsolutePath();
-
-        // Check to see if the backup dir is valid and not nothing.
-        if (!this.backupDir.equals("") && new File(this.backupDir).exists()) path = this.backupDir;
-
-        path = path + File.separator + world.getName() + "(" + currentCount + ")";
-
-        File backupDir = new File(path);
-
-        return backupDir.getAbsolutePath();
+        String path = this.backupDir;
+        new File(path).mkdirs();
+        return (path + File.separator + world.getName() + "(" + currentCount + ")");
     }
 
     // This function is to get the path of the world data on the current server.
     private String getWorldPath(World world) {
-        String container = this.pluginHandle.getServer().getWorldContainer().getAbsolutePath();
-
-        String path = container;
-
-        if (path.endsWith(File.separator + ".")) {
-            path = path.substring(0, container.length() - 2);
-        }
-
-        path = path + File.separator + world.getName();
-        return path;
+        String path = this.pluginHandle.getServer().getWorldContainer().getAbsolutePath();
+        return (path + File.separator + world.getName());
     }
 
     private static boolean copyLockedFile(File src, File dest) {
@@ -250,9 +239,8 @@ public class BackupHandler extends BukkitRunnable {
     // Returns null if there is no world with that name.
     private World getWorld(String worldName) {
         this.updateWorldList();
-        for (World world : this.loadedWorlds) {
+        for (World world : this.loadedWorlds) 
             if (worldName.equals(world.getName())) return world;
-        }
 
         return null;
     }
